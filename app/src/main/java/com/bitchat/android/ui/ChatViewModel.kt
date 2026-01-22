@@ -51,11 +51,22 @@ class ChatViewModel(
     val sayAllEnabled = _sayAllEnabled.asStateFlow()
 
     private val badWords = listOf("gay", "tits", "peen")
+
     private val warnings = listOf(
         "I like your style %s!",
         "Hey %s, wanna see my knob?",
         "%s. No soup for you!",
+        "%s. you look like you have died and gone to Rotherham!",
+        "%s. You wouldn't say that if you had been to a pub in Barnsley!",
+        "%s. You've earned a free shot! Just kidding. You've earned nowt.",
         "%s. You're snazzy."
+    )
+    private val botResponses = listOf(
+        "Sorry I am currently in Doncaster, I will be back soon.",
+        "I'm here, what's up?",
+        "You rang?",
+        "I'm busy watching the game, what do you want?",
+        "Speak to the hand, because the bot ain't listening."
     )
 
     companion object {
@@ -827,6 +838,23 @@ class ChatViewModel(
                     messageManager.addMessage(botMessage)
 
                     val secretMessage = "BOT_MSG::$warning"
+                    meshService.sendMessage(secretMessage, emptyList(), state.getCurrentChannelValue())
+                }
+            }
+
+            if (message.content.contains("@PopManBot", ignoreCase = true)) {
+                val allPeerIds = (state.getConnectedPeersValue() + meshService.myPeerID).sorted()
+                if (allPeerIds.first() == meshService.myPeerID) {
+                    val response = botResponses.random()
+                    val botMessage = BitchatMessage(
+                        sender = "PopManBot",
+                        content = response,
+                        timestamp = Date(),
+                        isRelay = false
+                    )
+                    messageManager.addMessage(botMessage)
+
+                    val secretMessage = "BOT_MSG::$response"
                     meshService.sendMessage(secretMessage, emptyList(), state.getCurrentChannelValue())
                 }
             }
