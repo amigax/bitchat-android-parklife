@@ -944,7 +944,7 @@ class ChatViewModel(
         }
 
         // Reset nickname
-        val newNickname = "anon${Random.nextInt(1000, 9999)}"
+        val newNickname = "parklife_boi${Random.nextInt(1000, 9999)}"
         state.setNickname(newNickname)
         dataManager.saveNickname(newNickname)
         

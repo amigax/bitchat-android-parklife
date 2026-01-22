@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import com.bitchat.android.core.ui.component.sheet.BitchatBottomSheet
 import com.bitchat.android.model.BitchatMessage
+import com.bitchat.android.util.logd
 
 /**
  * User Action Sheet for selecting actions on a specific user (slap, hug, block)
@@ -32,6 +33,8 @@ fun ChatUserSheet(
     viewModel: ChatViewModel,
     modifier: Modifier = Modifier
 ) {
+    logd("ChatUserSheet")
+
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     
@@ -92,6 +95,27 @@ fun ChatUserSheet(
                     
                     // Only show user actions for other users' messages or when no message is selected
                     if (selectedMessage?.sender != viewModel.nickname.value) {
+
+                        logd("ChatUserSheet: Showing user actions");
+                        //GAZ
+                        // Saporo HIM captain! action
+                        item {
+                            UserActionRow(
+                                title = stringResource(R.string.action_saphim_title, targetNickname),
+                                subtitle = stringResource(R.string.action_saphim_subtitle),
+                                titleColor = standardBlue,
+                                onClick = {
+                                    // Send saphim command
+                                    viewModel.sendMessage("/saphim $targetNickname")
+                                    onDismiss()
+                                }
+                            )
+                        }
+                        //
+
+
+
+
                         // Slap action
                         item {
                             UserActionRow(
