@@ -33,8 +33,8 @@ class CommandProcessor(
         CommandSuggestion("/unblock", emptyList(), "<nickname>", "unblock a peer"),
         CommandSuggestion("/w", emptyList(), null, "see who's online"),
         //GAZ
-        CommandSuggestion("/sapme", emptyList(), null, "demand a frosty beer for yourself!"),
-        CommandSuggestion("/saphim", emptyList(), "<nickname>", "demand a frosty beer for someone else!"),
+        CommandSuggestion("/sapme", emptyList(), null, "request a frosty beer for yourself!"),
+        CommandSuggestion("/saphim", emptyList(), "<nickname>", "request a frosty beer for someone else!"),
         CommandSuggestion("/saysapme", emptyList(), null, "say and play the sap me sound"),
         //GAZ
     )
@@ -48,7 +48,7 @@ class CommandProcessor(
         val cmd = parts.first().lowercase()
         when (cmd) {
             "/j", "/join" -> handleJoinCommand(parts, myPeerID)
-            "/m", "/msg" -> handleMessageCommand(parts, meshService)
+            "/m", "/msg" -> handleMessageCommand(parts, meshService, onSendMessage)
             "/w" -> handleWhoCommand(meshService, viewModel)
             "/clear" -> handleClearCommand()
             "/pass" -> handlePassCommand(parts, myPeerID)
@@ -61,7 +61,7 @@ class CommandProcessor(
             "/insult" -> handleInsultCommand(parts, myPeerID, onSendMessage)
             "/sapme" -> handleSelfActionCommand("requests a frosty beer! Sapporo me captain! 🍺🍺🍺🍺🍺", meshService, myPeerID, onSendMessage, viewModel)
             "/saphim" -> handleActionCommand(parts, "requests a frosty beer for", "! 🍺 Sapporo him captain!! 🍺🍺🍺🍺🍺", meshService, myPeerID, onSendMessage, viewModel)
-            "/saysapme" -> handleSayAndPlayCommand("Sapporo me captain! 🍺🍺🍺🍺🍺", R.raw.sapporome, viewModel, myPeerID)
+            "/saysapme" -> handleSayAndPlayCommand("Sapporo me captain! 🍺", R.raw.sapporome, viewModel, myPeerID)
             "/channels" -> handleChannelsCommand()
             else -> handleUnknownCommand(cmd)
         }
@@ -160,9 +160,39 @@ class CommandProcessor(
         }
     }
 
-    private fun handleMessageCommand(parts: List<String>, meshService: BluetoothMeshService) {
+    private fun handleMessageCommand(parts: List<String>, meshService: BluetoothMeshService, onSendMessage: (String, List<String>, String?) -> Unit) {
         if (parts.size > 1) {
             val targetName = parts[1].removePrefix("@")
+
+            if (targetName.equals("PopManBot", ignoreCase = true)) {
+                if (parts.size > 2) {
+                    val botCommand = parts.drop(2).joinToString(" ")
+                    
+                    // Create the local echo message from the bot
+                    val botMessage = BitchatMessage(
+                        sender = "PopManBot",
+                        content = botCommand,
+                        timestamp = Date(),
+                        isRelay = false
+                    )
+                    messageManager.addMessage(botMessage)
+
+                    // Send the secret command to other clients
+                    val secretMessage = "BOT_MSG::$botCommand"
+                    onSendMessage(secretMessage, emptyList(), state.getCurrentChannelValue())
+                } else {
+                     val systemMessage = BitchatMessage(
+                        sender = "system",
+                        content = "usage: /m PopManBot <command>",
+                        timestamp = Date(),
+                        isRelay = false
+                    )
+                    messageManager.addMessage(systemMessage)
+                }
+                return
+            }
+
+
             val peerID = getPeerIDForNickname(targetName, meshService)
 
             if (peerID != null) {
@@ -220,9 +250,9 @@ class CommandProcessor(
                 null -> {
                     // Mesh channel: show Bluetooth-connected peers
                     val connectedPeers = state.getConnectedPeersValue()
-                    val peerList = connectedPeers.joinToString(", ") { peerID ->
-                        getPeerNickname(peerID, meshService)
-                    }
+                    val peerNicknames = connectedPeers.map { peerID -> getPeerNickname(peerID, meshService) }.toMutableList()
+                    peerNicknames.add(0, "👑PopManBot")
+                    val peerList = peerNicknames.joinToString(", ")
                     Pair(peerList, "online users")
                 }
 
@@ -239,24 +269,26 @@ class CommandProcessor(
                         } else {
                             displayName
                         }
-                    }.joinToString(", ")
+                    }.toMutableList()
+                    participantList.add(0, "👑PopManBot")
+                    val peerList = participantList.joinToString(", ")
 
-                    Pair(participantList, "participants in ${selectedChannel.channel.geohash}")
+                    Pair(peerList, "participants in ${selectedChannel.channel.geohash}")
                 }
             }
         } else {
             // Fallback to mesh behavior
             val connectedPeers = state.getConnectedPeersValue()
-            val peerList = connectedPeers.joinToString(", ") { peerID ->
-                getPeerNickname(peerID, meshService)
-            }
+            val peerNicknames = connectedPeers.map { peerID -> getPeerNickname(peerID, meshService) }.toMutableList()
+            peerNicknames.add(0, "👑PopManBot")
+            val peerList = peerNicknames.joinToString(", ")
             Pair(peerList, "online users")
         }
 
         val systemMessage = BitchatMessage(
             sender = "system",
             content = if (peerList.isEmpty()) {
-                "no one else is around right now. have a chat to mark instead, and drink!"
+                "Just you and PopManBot are here."
             } else {
                 "$contextDescription: $peerList"
             },

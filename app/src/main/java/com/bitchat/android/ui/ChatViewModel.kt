@@ -781,15 +781,72 @@ class ChatViewModel(
     }
     
     override fun didReceiveMessage(message: BitchatMessage) {
-        if (_sayAllEnabled.value && message.senderPeerID != meshService.myPeerID) {
-            val sender = message.sender ?: "Someone"
-            val content = message.content
-            speak("$sender said $content")
+        if (message.senderPeerID != meshService.myPeerID) {
+            if (message.content.startsWith("BOT_MSG::")) {
+                val parts = message.content.split("::")
+                if (parts.size > 1) {
+                    val botContent = parts[1]
+                    val botMessage = BitchatMessage(
+                        sender = "PopManBot",
+                        content = botContent,
+                        timestamp = Date(),
+                        isRelay = false
+                    )
+                    messageManager.addMessage(botMessage)
+                }
+                return
+            }
+
+
+            if (_sayAllEnabled.value) {
+                val sender = message.sender ?: "Someone"
+                val content = message.content
+                speak("$sender said $content")
+            }
         }
         meshDelegateHandler.didReceiveMessage(message)
     }
     
+    private val greetings = listOf(
+        "Oooh you look snazzy %s!",
+        "Is that your mother's money coming through %s?",
+        "Oooh you're nicer than my wife %s!",
+        "Look -> %s she's here!",
+        "Oh no it's %s!! Hide your expensive stuff and cover your arse.",
+        "... %s <--- and thats milunch!",
+        "Welcome to the channel, %s!",
+        "Look what the cat dragged in... it's %s!",
+        "A wild %s appears!",
+        "Everybody clap your hands for %s!",
+        "Here comes %s!",
+        "Say hi to %s, everyone!"
+    )
+
     override fun didUpdatePeerList(peers: List<String>) {
+        val oldPeers = state.getConnectedPeersValue().toSet()
+        val newPeers = peers.toSet()
+        val justJoined = newPeers - oldPeers
+
+        if (justJoined.isNotEmpty()) {
+            val allPeerIds = (newPeers + meshService.myPeerID).sorted()
+            if (allPeerIds.first() == meshService.myPeerID) {
+                justJoined.forEach { peerId ->
+                    val nickname = meshService.getPeerNicknames()[peerId] ?: peerId
+                    val greeting = greetings.random().format(nickname)
+                    
+                    val botMessage = BitchatMessage(
+                        sender = "PopManBot",
+                        content = greeting,
+                        timestamp = Date(),
+                        isRelay = false
+                    )
+                    messageManager.addMessage(botMessage)
+
+                    val secretMessage = "BOT_MSG::$greeting"
+                    meshService.sendMessage(secretMessage, emptyList(), state.getCurrentChannelValue())
+                }
+            }
+        }
         meshDelegateHandler.didUpdatePeerList(peers)
     }
     

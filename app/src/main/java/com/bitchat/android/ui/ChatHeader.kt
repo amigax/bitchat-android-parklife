@@ -174,7 +174,7 @@ fun PeerCounter(
         is com.bitchat.android.geohash.ChannelID.Mesh,
         null -> {
             // Mesh channel: show Bluetooth-connected peers (excluding self)
-            val count = connectedPeers.size
+            val count = connectedPeers.size + 1
             val meshBlue = Color(0xFF007AFF) // iOS-style blue for mesh
             Pair(count, if (isConnected && count > 0) meshBlue else Color.Gray)
         }

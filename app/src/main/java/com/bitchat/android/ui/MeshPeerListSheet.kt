@@ -282,6 +282,9 @@ fun PeopleSection(
     viewModel: ChatViewModel,
     onPrivateChatStart: (String) -> Unit
 ) {
+    val allPeers = connectedPeers.toMutableList()
+    allPeers.add(0, "👑PopManBot")
+
     Column(modifier = modifier) {
         Text(
             text = stringResource(id = R.string.people).uppercase(),
@@ -294,7 +297,7 @@ fun PeopleSection(
                 .padding(top = 8.dp, bottom = 4.dp)
         )
 
-        if (connectedPeers.isEmpty()) {
+        if (allPeers.isEmpty()) {
             Text(
                 text = stringResource(id = R.string.no_one_connected),
                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -316,22 +319,22 @@ fun PeopleSection(
         val verifiedFingerprints by viewModel.verifiedFingerprints.collectAsStateWithLifecycle()
 
         // Reactive favorite computation for all peers
-        val peerFavoriteStates = remember(favoritePeers, peerFingerprints, connectedPeers) {
-            connectedPeers.associateWith { peerID ->
+        val peerFavoriteStates = remember(favoritePeers, peerFingerprints, allPeers) {
+            allPeers.associateWith { peerID ->
                 // Reactive favorite computation - same as ChatHeader
                 val fingerprint = peerFingerprints[peerID]
                 fingerprint != null && favoritePeers.contains(fingerprint)
             }
         }
 
-        val peerVerifiedStates = remember(verifiedFingerprints, peerFingerprints, connectedPeers) {
-            connectedPeers.associateWith { peerID ->
+        val peerVerifiedStates = remember(verifiedFingerprints, peerFingerprints, allPeers) {
+            allPeers.associateWith { peerID ->
                 viewModel.isPeerVerified(peerID, verifiedFingerprints)
             }
         }
 
         // Build mapping of connected peerID -> noise key hex to unify with offline favorites
-        val noiseHexByPeerID: Map<String, String> = connectedPeers.associateWith { pid ->
+        val noiseHexByPeerID: Map<String, String> = allPeers.associateWith { pid ->
             try {
                 viewModel.meshService.getPeerInfo(pid)?.noisePublicKey?.joinToString("") { b -> "%02x".format(b) }
             } catch (_: Exception) { null }
@@ -340,7 +343,7 @@ fun PeopleSection(
         Log.d("SidebarComponents", "Recomposing with ${favoritePeers.size} favorites, peer states: $peerFavoriteStates")
 
         // Smart sorting: unread DMs first, then by most recent DM, then favorites, then alphabetical
-        val sortedPeers = connectedPeers.sortedWith(
+        val sortedPeers = allPeers.sortedWith(
             compareBy<String> { !hasUnreadPrivateMessages.contains(it) } // Unread DM senders first
             .thenByDescending { privateChats[it]?.maxByOrNull { msg -> msg.timestamp }?.timestamp?.time ?: 0L } // Most recent DM (convert Date to Long)
             .thenBy { !(peerFavoriteStates[it] ?: false) } // Favorites first
@@ -352,6 +355,7 @@ fun PeopleSection(
 
         // Helper to compute display name used for a given key
         fun computeDisplayNameForPeerId(key: String): String {
+            if (key == "👑PopManBot") return "👑PopManBot"
             return if (key == nickname) "You" else (peerNicknames[key] ?: (privateChats[key]?.lastOrNull()?.sender ?: key.take(12)))
         }
 
@@ -392,6 +396,26 @@ fun PeopleSection(
             }
 
         sortedPeers.forEach { peerID ->
+            if (peerID == "👑PopManBot") {
+                PeerItem(
+                    peerID = "👑PopManBot",
+                    displayName = "👑PopManBot",
+                    isDirect = false,
+                    isSelected = false,
+                    isFavorite = false,
+                    isVerified = false,
+                    hasUnreadDM = false,
+                    colorScheme = colorScheme,
+                    viewModel = viewModel,
+                    onItemClick = { },
+                    onToggleFavorite = { },
+                    showNostrGlobe = false,
+                    showHashSuffix = false
+                )
+                return@forEach
+            }
+
+
             val isFavorite = peerFavoriteStates[peerID] ?: false
             val isVerified = peerVerifiedStates[peerID] ?: false
             // fingerprint and favorite relationship resolution not needed here; UI will show Nostr globe for appended offline favorites below
@@ -493,49 +517,6 @@ fun PeopleSection(
             )
             appendedOfflineIds.add(favPeerID)
         }
-
-        // NOTE: Do NOT append Nostr-only (nostr_*) conversations to the mesh people list.
-        // Geohash DMs should appear in the GeohashPeople list for the active geohash, not in mesh offline contacts.
-        // We intentionally remove previously-added behavior that mixed geohash DMs into mesh sidebar.
-        // If you need to surface non-geohash offline mesh conversations in the future, do it here for 64-hex noise IDs only.
-        /*
-        val alreadyShownIds = connectedIds + appendedOfflineIds
-        privateChats.keys
-            .filter { key ->
-                // Only include 64-hex noise IDs (mesh identities); exclude any nostr_* aliases
-                hex64Regex.matches(key) &&
-                !alreadyShownIds.contains(key) &&
-                // Skip if this key maps to a connected peer via noiseHex mapping
-                !noiseHexByPeerID.values.any { it.equals(key, ignoreCase = true) }
-            }
-            .sortedBy { key -> privateChats[key]?.lastOrNull()?.timestamp }
-            .forEach { convKey ->
-                val lastSender = privateChats[convKey]?.lastOrNull()?.sender
-                val dn = peerNicknames[convKey] ?: (lastSender ?: convKey.take(12))
-                val (bName, _) = splitSuffix(dn)
-                val showHash = (baseNameCounts[bName] ?: 0) > 1
-
-                PeerItem(
-                    peerID = convKey,
-                    displayName = dn,
-                    isDirect = false,
-                    isSelected = convKey == selectedPrivatePeer,
-                    isFavorite = false,
-                    hasUnreadDM = hasUnreadPrivateMessages.contains(convKey),
-                    colorScheme = colorScheme,
-                    viewModel = viewModel,
-                    onItemClick = { onPrivateChatStart(convKey) },
-                    onToggleFavorite = { viewModel.toggleFavorite(convKey) },
-                    unreadCount = privateChats[convKey]?.count { msg ->
-                        msg.sender != nickname && hasUnreadPrivateMessages.contains(convKey)
-                    } ?: if (hasUnreadPrivateMessages.contains(convKey)) 1 else 0,
-                    showNostrGlobe = false,
-                    showHashSuffix = showHash
-                )
-            }
-        */
-        // End intentional removal
-        
     }
 }
 

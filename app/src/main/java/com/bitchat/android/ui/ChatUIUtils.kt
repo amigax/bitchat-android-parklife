@@ -65,13 +65,17 @@ fun formatMessageAsAnnotatedString(
         // Split sender into base name and hashtag suffix
         val (baseName, suffix) = splitSuffix(message.sender)
         
-        // Sender prefix "<@"
+        // Sender prefix "<@" or "<👑" for PopManBot
         builder.pushStyle(SpanStyle(
             color = baseColor,
             fontSize = BASE_FONT_SIZE.sp,
             fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
         ))
-        builder.append("<@")
+        if (baseName.equals("PopManBot", ignoreCase = true)) {
+            builder.append("<👑")
+        } else {
+            builder.append("<@")
+        }
         builder.pop()
         
         // Base name (clickable)
@@ -177,13 +181,17 @@ fun formatMessageHeaderAnnotatedString(
         val baseColor = if (isSelf) Color(0xFFFF9500) else getPeerColor(message, isDark)
         val (baseName, suffix) = splitSuffix(message.sender)
 
-        // "<@"
+        // "<@" or "<👑" for PopManBot
         builder.pushStyle(SpanStyle(
             color = baseColor,
             fontSize = BASE_FONT_SIZE.sp,
             fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
         ))
-        builder.append("<@")
+        if (baseName.equals("PopManBot", ignoreCase = true)) {
+            builder.append("<👑")
+        } else {
+            builder.append("<@")
+        }
         builder.pop()
 
         // Base name (clickable when not self)
