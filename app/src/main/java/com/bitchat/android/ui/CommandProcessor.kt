@@ -4,6 +4,9 @@ import com.bitchat.android.R
 import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.model.BitchatMessage
 import java.util.Date
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.lifecycle.viewModelScope
 
 /**
  * Handles processing of IRC-style commands
@@ -28,9 +31,9 @@ class CommandProcessor(
         CommandSuggestion("/unblock", emptyList(), "<nickname>", "unblock a peer"),
         CommandSuggestion("/w", emptyList(), null, "see who's online"),
         //GAZ
-        CommandSuggestion("/sapme", emptyList(), null, "demand a frosty beer for yourself!"),
-        CommandSuggestion("/saphim", emptyList(), "<nickname>", "demand a frosty beer for someone else!"),
-        CommandSuggestion("/saysapme", emptyList(), null, "say and play the sap me sound"),
+        CommandSuggestion("/sapme", emptyList(), null, "request a frosty beer for yourself!"),
+        CommandSuggestion("/saphim", emptyList(), "<nickname>", "request a frosty beer for someone else!"),
+        CommandSuggestion("/saysapme", emptyList(), null, "Text to Speech Sapporo me captain."),
         //GAZ
     )
 
@@ -49,12 +52,12 @@ class CommandProcessor(
             "/pass" -> handlePassCommand(parts, myPeerID)
             "/block" -> handleBlockCommand(parts, meshService)
             "/unblock" -> handleUnblockCommand(parts, meshService)
-            "/say" -> handleSayCommand(parts, viewModel)
+            "/say" -> handleSayCommand(parts, viewModel, myPeerID)
             "/hug" -> handleActionCommand(parts, "gives", "a warm hug 🫂", meshService, myPeerID, onSendMessage, viewModel)
             "/slap" -> handleActionCommand(parts, "slaps", "around a bit with a large trout 🐟", meshService, myPeerID, onSendMessage, viewModel)
             "/sapme" -> handleSelfActionCommand("requests a frosty beer! Sapporo me captain! 🍺🍺🍺🍺🍺", meshService, myPeerID, onSendMessage, viewModel)
             "/saphim" -> handleActionCommand(parts, "requests a frosty beer for", "! 🍺 Sapporo him captain!! 🍺🍺🍺🍺🍺", meshService, myPeerID, onSendMessage, viewModel)
-            "/saysapme" -> handleSayAndPlayCommand("Sapporo me captain!", R.raw.sapporome, viewModel)
+            "/saysapme" -> handleSayAndPlayCommand("Sapporo me captain! 🍺", R.raw.sapporome, viewModel, myPeerID)
             "/channels" -> handleChannelsCommand()
             else -> handleUnknownCommand(cmd)
         }
@@ -62,14 +65,46 @@ class CommandProcessor(
         return true
     }
 
-    private fun handleSayAndPlayCommand(text: String, soundResId: Int, viewModel: ChatViewModel?) {
+    private fun handleSayAndPlayCommand(text: String, soundResId: Int, viewModel: ChatViewModel?, myPeerID: String) {
+        val message = BitchatMessage(
+            sender = state.getNicknameValue() ?: myPeerID,
+            content = text,
+            timestamp = Date(),
+            isRelay = false,
+            senderPeerID = myPeerID,
+            channel = state.getCurrentChannelValue()
+        )
+        if (state.getCurrentChannelValue() != null) {
+            channelManager.addChannelMessage(state.getCurrentChannelValue()!!, message, myPeerID)
+        } else {
+            messageManager.addMessage(message)
+        }
+
         viewModel?.speak(text)
-        viewModel?.playSound(soundResId)
+        viewModel?.viewModelScope?.launch {
+            delay(2000)
+            viewModel.playSound(soundResId)
+        }
     }
 
-    private fun handleSayCommand(parts: List<String>, viewModel: ChatViewModel?) {
+    private fun handleSayCommand(parts: List<String>, viewModel: ChatViewModel?, myPeerID: String) {
         if (parts.size > 1) {
             val textToSpeak = parts.drop(1).joinToString(" ")
+
+            val message = BitchatMessage(
+                sender = state.getNicknameValue() ?: myPeerID,
+                content = textToSpeak,
+                timestamp = Date(),
+                isRelay = false,
+                senderPeerID = myPeerID,
+                channel = state.getCurrentChannelValue()
+            )
+            if (state.getCurrentChannelValue() != null) {
+                channelManager.addChannelMessage(state.getCurrentChannelValue()!!, message, myPeerID)
+            } else {
+                messageManager.addMessage(message)
+            }
+
             viewModel?.speak(textToSpeak)
         } else {
             val systemMessage = BitchatMessage(
