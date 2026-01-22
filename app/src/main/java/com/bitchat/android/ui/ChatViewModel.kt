@@ -50,6 +50,14 @@ class ChatViewModel(
     private val _sayAllEnabled = MutableStateFlow(false)
     val sayAllEnabled = _sayAllEnabled.asStateFlow()
 
+    private val badWords = listOf("gay", "tits", "peen")
+    private val warnings = listOf(
+        "I like your style %s!",
+        "Hey %s, wanna see my knob?",
+        "%s. No soup for you!",
+        "%s. You're snazzy."
+    )
+
     companion object {
         private const val TAG = "ChatViewModel"
     }
@@ -803,17 +811,30 @@ class ChatViewModel(
                 val content = message.content
                 speak("$sender said $content")
             }
+
+            val containsBadWord = badWords.any { message.content.contains(it, ignoreCase = true) }
+            if (containsBadWord) {
+                val allPeerIds = (state.getConnectedPeersValue() + meshService.myPeerID).sorted()
+                if (allPeerIds.first() == meshService.myPeerID) {
+                    val warning = warnings.random().format(message.sender)
+                    
+                    val botMessage = BitchatMessage(
+                        sender = "PopManBot",
+                        content = warning,
+                        timestamp = Date(),
+                        isRelay = false
+                    )
+                    messageManager.addMessage(botMessage)
+
+                    val secretMessage = "BOT_MSG::$warning"
+                    meshService.sendMessage(secretMessage, emptyList(), state.getCurrentChannelValue())
+                }
+            }
         }
         meshDelegateHandler.didReceiveMessage(message)
     }
     
     private val greetings = listOf(
-        "Oooh you look snazzy %s!",
-        "Is that your mother's money coming through %s?",
-        "Oooh you're nicer than my wife %s!",
-        "Look -> %s she's here!",
-        "Oh no it's %s!! Hide your expensive stuff and cover your arse.",
-        "... %s <--- and thats milunch!",
         "Welcome to the channel, %s!",
         "Look what the cat dragged in... it's %s!",
         "A wild %s appears!",
