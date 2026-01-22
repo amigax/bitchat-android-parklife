@@ -1,5 +1,6 @@
 package com.bitchat.android.ui
 
+import com.bitchat.android.R
 import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.model.BitchatMessage
 import java.util.Date
@@ -22,15 +23,15 @@ class CommandProcessor(
         CommandSuggestion("/hug", emptyList(), "<nickname>", "send someone a warm hug"),
         CommandSuggestion("/j", listOf("/join"), "<channel>", "join or create a channel"),
         CommandSuggestion("/m", listOf("/msg"), "<nickname> [message]", "send private message"),
-        CommandSuggestion("/sapme", emptyList(), null, "scream for your captain"),
+        CommandSuggestion("/say", emptyList(), "<text>", "speak the text out loud"),
         CommandSuggestion("/slap", emptyList(), "<nickname>", "slap someone with a trout"),
         CommandSuggestion("/unblock", emptyList(), "<nickname>", "unblock a peer"),
         CommandSuggestion("/w", emptyList(), null, "see who's online"),
         //GAZ
         CommandSuggestion("/sapme", emptyList(), null, "demand a frosty beer for yourself!"),
-        CommandSuggestion("/saphim", emptyList(), null, "demand a frosty beer for someone else!"),
-    //GAZ
-
+        CommandSuggestion("/saphim", emptyList(), "<nickname>", "demand a frosty beer for someone else!"),
+        CommandSuggestion("/saysapme", emptyList(), null, "say and play the sap me sound"),
+        //GAZ
     )
 
     // MARK: - Command Processing
@@ -48,14 +49,37 @@ class CommandProcessor(
             "/pass" -> handlePassCommand(parts, myPeerID)
             "/block" -> handleBlockCommand(parts, meshService)
             "/unblock" -> handleUnblockCommand(parts, meshService)
-            "/hug" -> handleActionCommand(parts, "gives", "a warm hug 🫂", meshService, myPeerID, onSendMessage)
-            "/slap" -> handleActionCommand(parts, "slaps", "around a bit with a large trout 🐟", meshService, myPeerID, onSendMessage)
-            "/sapme" -> handleSelfActionCommand("screams \"Saporo me captain!\"", meshService, myPeerID, onSendMessage)
+            "/say" -> handleSayCommand(parts, viewModel)
+            "/hug" -> handleActionCommand(parts, "gives", "a warm hug 🫂", meshService, myPeerID, onSendMessage, viewModel)
+            "/slap" -> handleActionCommand(parts, "slaps", "around a bit with a large trout 🐟", meshService, myPeerID, onSendMessage, viewModel)
+            "/sapme" -> handleSelfActionCommand("requests a frosty beer! Sapporo me captain! 🍺🍺🍺🍺🍺", meshService, myPeerID, onSendMessage, viewModel)
+            "/saphim" -> handleActionCommand(parts, "requests a frosty beer for", "! 🍺 Sapporo him captain!! 🍺🍺🍺🍺🍺", meshService, myPeerID, onSendMessage, viewModel)
+            "/saysapme" -> handleSayAndPlayCommand("Sapporo me captain!", R.raw.sapporome, viewModel)
             "/channels" -> handleChannelsCommand()
             else -> handleUnknownCommand(cmd)
         }
 
         return true
+    }
+
+    private fun handleSayAndPlayCommand(text: String, soundResId: Int, viewModel: ChatViewModel?) {
+        viewModel?.speak(text)
+        viewModel?.playSound(soundResId)
+    }
+
+    private fun handleSayCommand(parts: List<String>, viewModel: ChatViewModel?) {
+        if (parts.size > 1) {
+            val textToSpeak = parts.drop(1).joinToString(" ")
+            viewModel?.speak(textToSpeak)
+        } else {
+            val systemMessage = BitchatMessage(
+                sender = "system",
+                content = "usage: /say <text>",
+                timestamp = Date(),
+                isRelay = false
+            )
+            messageManager.addMessage(systemMessage)
+        }
     }
 
     private fun handleJoinCommand(parts: List<String>, myPeerID: String) {
@@ -293,7 +317,8 @@ class CommandProcessor(
         object_: String,
         meshService: BluetoothMeshService,
         myPeerID: String,
-        onSendMessage: (String, List<String>, String?) -> Unit
+        onSendMessage: (String, List<String>, String?) -> Unit,
+        viewModel: ChatViewModel? = null
     ) {
         if (parts.size > 1) {
             val targetName = parts[1].removePrefix("@")
@@ -302,6 +327,8 @@ class CommandProcessor(
             // If we're in a geohash location channel, don't add a local echo here.
             // GeohashViewModel.sendGeohashMessage() will add the local echo with proper metadata.
             val isInLocationChannel = state.selectedLocationChannel.value is com.bitchat.android.geohash.ChannelID.Location
+
+            viewModel?.playSound(R.raw.sapporome)
 
             // Send as regular message
             if (state.getSelectedPrivateChatPeerValue() != null) {
@@ -351,12 +378,15 @@ class CommandProcessor(
         actionText: String,
         meshService: BluetoothMeshService,
         myPeerID: String,
-        onSendMessage: (String, List<String>, String?) -> Unit
+        onSendMessage: (String, List<String>, String?) -> Unit,
+        viewModel: ChatViewModel? = null
     ) {
         val senderNickname = state.getNicknameValue() ?: "someone"
         val actionMessage = "* $senderNickname $actionText *"
 
         val isInLocationChannel = state.selectedLocationChannel.value is com.bitchat.android.geohash.ChannelID.Location
+
+        viewModel?.playSound(R.raw.sapporome)
 
         if (state.getSelectedPrivateChatPeerValue() != null) {
             val peerID = state.getSelectedPrivateChatPeerValue()!!

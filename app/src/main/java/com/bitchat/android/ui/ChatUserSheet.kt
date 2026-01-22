@@ -96,22 +96,9 @@ fun ChatUserSheet(
                     // Only show user actions for other users' messages or when no message is selected
                     if (selectedMessage?.sender != viewModel.nickname.value) {
 
-                        logd("ChatUserSheet: Showing user actions");
-                        //GAZ
-                        // Saporo HIM captain! action
-                        item {
-                            UserActionRow(
-                                title = stringResource(R.string.action_saphim_title, targetNickname),
-                                subtitle = stringResource(R.string.action_saphim_subtitle),
-                                titleColor = standardBlue,
-                                onClick = {
-                                    // Send saphim command
-                                    viewModel.sendMessage("/saphim $targetNickname")
-                                    onDismiss()
-                                }
-                            )
-                        }
-                        //
+                        logd("xxxx ChatUserSheet: Showing user actions");
+
+
 
 
 
