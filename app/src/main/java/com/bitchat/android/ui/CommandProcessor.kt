@@ -23,6 +23,7 @@ class CommandProcessor(
         CommandSuggestion("/block", emptyList(), "[nickname]", "block or list blocked peers"),
         CommandSuggestion("/channels", emptyList(), null, "show all discovered channels"),
         CommandSuggestion("/clear", emptyList(), null, "clear chat messages"),
+        CommandSuggestion("/figlet", emptyList(), "<text>", "generate ASCII art text"),
         CommandSuggestion("/hug", emptyList(), "<nickname>", "send someone a warm hug"),
         CommandSuggestion("/insult", emptyList(), "<nickname>", "generate a random insult"),
         CommandSuggestion("/j", listOf("/join"), "<channel>", "join or create a channel"),
@@ -59,6 +60,7 @@ class CommandProcessor(
             "/hug" -> handleActionCommand(parts, "gives", "a warm hug 🫂", meshService, myPeerID, onSendMessage, viewModel)
             "/slap" -> handleActionCommand(parts, "slaps", "around a bit with a large trout 🐟", meshService, myPeerID, onSendMessage, viewModel)
             "/insult" -> handleInsultCommand(parts, myPeerID, onSendMessage)
+            "/figlet" -> handleFigletCommand(parts, viewModel)
             "/sapme" -> handleSelfActionCommand("requests a frosty beer! Sapporo me captain! 🍺🍺🍺🍺🍺", meshService, myPeerID, onSendMessage, viewModel)
             "/saphim" -> handleActionCommand(parts, "requests a frosty beer for", "! 🍺 Sapporo him captain!! 🍺🍺🍺🍺🍺", meshService, myPeerID, onSendMessage, viewModel)
             "/saysapme" -> handleSayAndPlayCommand("Sapporo me captain! 🍺", R.raw.sapporome, viewModel, myPeerID)
@@ -67,6 +69,21 @@ class CommandProcessor(
         }
 
         return true
+    }
+
+    private fun handleFigletCommand(parts: List<String>, viewModel: ChatViewModel?) {
+        if (parts.size > 1) {
+            val textToFiglet = parts.drop(1).joinToString(" ")
+            viewModel?.sendFigletMessage(textToFiglet)
+        } else {
+            val systemMessage = BitchatMessage(
+                sender = "system",
+                content = "usage: /figlet <text>",
+                timestamp = Date(),
+                isRelay = false
+            )
+            messageManager.addMessage(systemMessage)
+        }
     }
 
     private fun handleSayAllCommand(viewModel: ChatViewModel?) {

@@ -35,6 +35,7 @@ import com.bitchat.android.nostr.GeohashAliasRegistry
 import com.bitchat.android.util.dataFromHexString
 import com.bitchat.android.util.hexEncodedString
 import java.security.MessageDigest
+import com.bitchat.android.services.FigletService
 
 class ChatViewModel(
     application: Application,
@@ -558,6 +559,38 @@ class ChatViewModel(
         }
     }
 
+    fun sendFigletMessage(text: String) {
+        viewModelScope.launch {
+            val figletText = FigletService.generateFigletText(text)
+            if (figletText != null) {
+                val message = BitchatMessage(
+                    sender = state.getNicknameValue() ?: meshService.myPeerID,
+                    content = figletText,
+                    timestamp = Date(),
+                    isRelay = false,
+                    senderPeerID = meshService.myPeerID,
+                    channel = state.getCurrentChannelValue()
+                )
+
+                if (state.getCurrentChannelValue() != null) {
+                    channelManager.addChannelMessage(state.getCurrentChannelValue()!!, message, meshService.myPeerID)
+                    meshService.sendMessage(figletText, emptyList(), state.getCurrentChannelValue())
+                } else {
+                    messageManager.addMessage(message)
+                    meshService.sendMessage(figletText, emptyList(), null)
+                }
+            } else {
+                messageManager.addMessage(
+                    BitchatMessage(
+                        sender = "system",
+                        content = "Failed to generate FIGlet text.",
+                        timestamp = Date(),
+                        isRelay = false
+                    )
+                )
+            }
+        }
+    }
     
     fun getPeerIDForNickname(nickname: String): String? {
         return meshService.getPeerNicknames().entries.find { it.value == nickname }?.key
