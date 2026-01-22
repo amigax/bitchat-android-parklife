@@ -47,8 +47,15 @@ class ChatViewModel(
         private set
     private val debugManager by lazy { try { com.bitchat.android.ui.debug.DebugSettingsManager.getInstance() } catch (e: Exception) { null } }
 
+    private val _sayAllEnabled = MutableStateFlow(false)
+    val sayAllEnabled = _sayAllEnabled.asStateFlow()
+
     companion object {
         private const val TAG = "ChatViewModel"
+    }
+
+    fun toggleSayAll() {
+        _sayAllEnabled.value = !_sayAllEnabled.value
     }
 
     fun sendVoiceNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
@@ -774,6 +781,11 @@ class ChatViewModel(
     }
     
     override fun didReceiveMessage(message: BitchatMessage) {
+        if (_sayAllEnabled.value && message.senderPeerID != meshService.myPeerID) {
+            val sender = message.sender ?: "Someone"
+            val content = message.content
+            speak("$sender said $content")
+        }
         meshDelegateHandler.didReceiveMessage(message)
     }
     
