@@ -50,6 +50,8 @@ class ChatViewModel(
     private val _sayAllEnabled = MutableStateFlow(false)
     val sayAllEnabled = _sayAllEnabled.asStateFlow()
 
+    //POPMANBOT RESPONSES.
+    //if u swear
     private val badWords = listOf("gay", "tits", "peen")
 
     private val warnings = listOf(
@@ -61,12 +63,18 @@ class ChatViewModel(
         "%s. You've earned a free shot! Just kidding. You've earned nowt.",
         "%s. You're snazzy."
     )
+
+    //if u mention popmanbot by name
     private val botResponses = listOf(
-        "Sorry I am currently in Doncaster, I will be back soon.",
-        "I'm here, what's up?",
-        "You rang?",
-        "I'm busy watching the game, what do you want?",
-        "Speak to the hand, because the bot ain't listening."
+        "Sorry %s I am currently in Doncaster, I will be back soon.",
+        "You rang, %s?",
+        "%s Sapporo you Captain?",
+        "%s best power?",
+        "%s! That’s the best cooked breakfast I’ve had since Gary Wilmot’s wedding.",
+        "%s, Will you stop saying you threw your monkey in the sea?",
+        "I'm going nowhere, %s, quite literally I'm on the ring road.",
+        "%s... No way you big spastic, you're a mentalist",
+        "%s... I’d just like to fly a helicopter all around Norfolk... scare a donkey"
     )
 
     companion object {
@@ -845,7 +853,7 @@ class ChatViewModel(
             if (message.content.contains("@PopManBot", ignoreCase = true)) {
                 val allPeerIds = (state.getConnectedPeersValue() + meshService.myPeerID).sorted()
                 if (allPeerIds.first() == meshService.myPeerID) {
-                    val response = botResponses.random()
+                    val response = botResponses.random().format(message.sender)
                     val botMessage = BitchatMessage(
                         sender = "PopManBot",
                         content = response,
